@@ -2,6 +2,27 @@ import { Injectable,NotFoundException,UnauthorizedException } from '@nestjs/comm
 import { PrismaService } from 'src/prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { AuthEntity } from './entity/auth.entity';
-
+import * as bcrypt from 'bcrypt'
 @Injectable()
-export class AuthService {}
+export class AuthService {
+
+    constructor(private  prisma:PrismaService,private jwtService:JwtService) {}
+
+    async login (email :string, password:string) :Promise <AuthEntity>{
+        const user = await this.prisma.user.findUnique({where:{email:email}});
+
+        if(!user){
+            throw new NotFoundException(`Usuario no encontrado con el email ${email}`);
+        }
+        
+        const isPasswordValid = await bcrypt.compare(password,user.password)
+
+        if (!isPasswordValid) {
+            throw new UnauthorizedException('Contraseña Invalida')
+        }
+
+        return {
+            accessToken: this.jwtService.sign({userId: user.id})
+        }
+    }
+}
